@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Powered Mass Balance Checker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    body { background: #f1f5f9; color: #111827; min-height: 100vh; }
+    .page { width: 94%; max-width: 1220px; margin: 28px auto; }
+    .hero { margin-bottom: 24px; }
+    .tag { color:#0f766e; font-weight:800; text-transform:uppercase; font-size:12px; letter-spacing:.1em; }
+    h1 { font-size: 40px; margin: 7px 0 10px; }
+    .hero p { max-width: 900px; color:#4b5563; line-height:1.6; }
+    .grid { display:grid; grid-template-columns: 1.15fr .85fr; gap:20px; align-items:start; }
+    .card { background:#fff; border-radius:18px; padding:22px; box-shadow:0 10px 30px rgba(15,23,42,.08); }
+    h2 { font-size:22px; margin-bottom:14px; }
+    label { display:block; font-weight:700; margin:14px 0 7px; font-size:14px; }
+    select, textarea { width:100%; border:1px solid #cbd5e1; border-radius:12px; padding:12px; font-size:14px; background:#fff; }
+    textarea { min-height:160px; resize:vertical; line-height:1.5; }
+    .chips { display:flex; gap:7px; flex-wrap:wrap; margin:10px 0 12px; }
+    .chip { background:#dcfce7; color:#166534; padding:5px 9px; border-radius:999px; font-size:12px; font-weight:700; }
+    .btns { display:flex; gap:9px; margin-top:14px; flex-wrap:wrap; }
+    button { border:0; border-radius:11px; padding:12px 16px; font-weight:800; cursor:pointer; color:#fff; background:#0f766e; }
+    button:hover { opacity:.92; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .blue { background:#2563eb; }
+    .gray { background:#475569; }
+    .criteria { display:grid; gap:10px; }
+    .criterion { background:#ecfeff; border:1px solid #67e8f9; border-radius:13px; padding:13px; line-height:1.45; }
+    .criterion b { color:#0f766e; display:block; margin-bottom:5px; }
+    .report-wrap { margin-top:20px; }
+    .report-title-row { display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:12px; }
+    .summary-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; margin:14px 0; }
+    .summary-box { background:#f8fafc; border:1px solid #e5e7eb; border-radius:13px; padding:14px; }
+    .summary-box b { display:block; font-size:13px; color:#64748b; margin-bottom:6px; }
+    .summary-box span { font-size:21px; font-weight:900; color:#0f766e; }
+    .section { border:1px solid #e5e7eb; border-radius:14px; padding:16px; margin:12px 0; background:#fff; }
+    .section h3 { font-size:17px; margin-bottom:8px; color:#0f172a; }
+    .section ul { margin-left: 20px; line-height:1.65; }
+    .report-dark { background:#0f172a; color:#f8fafc; padding:20px; border-radius:16px; line-height:1.7; white-space:pre-wrap; font-family:"Courier New", monospace; font-size:14px; }
+    .audit { display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; }
+    .audit-card { border:1px solid #e5e7eb; border-radius:12px; padding:13px; background:#f9fafb; }
+    .audit-card strong { display:block; margin-bottom:5px; }
+    .pass { color:#047857; }
+    .warning { color:#b45309; }
+    .fail { color:#dc2626; }
+    .loading { color:#475569; font-weight:700; padding:12px 0; }
+    .footer { text-align:center; color:#64748b; font-size:13px; padding:25px 0; }
+    @media(max-width:900px){ .grid{grid-template-columns:1fr;} h1{font-size:30px;} .summary-grid,.audit{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="tag">LLM API Powered Bioprocess Calculation</div>
+      <h1>Mass Balance Review</h1>
+      <p>
+        This web tool accepts a fermentation or bioprocess scenario and a student's mass balance attempt.
+        The review is generated through an LLM API using a prompt-engineered mass balance examiner instruction.
+      </p>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Submit your calculation</h2>
+
+        <label for="sample">Optional sample cases</label>
+        <select id="sample" onchange="loadSample()">
+          <option value="">Custom input / write your own</option>
+          <option value="ethanol">Sample 1: Ethanol fermentation</option>
+          <option value="biomass">Sample 2: Incomplete biomass case</option>
+          <option value="gas">Sample 3: Missing gas stream</option>
+          <option value="wrong">Sample 4: Wrong stoichiometry</option>
+        </select>
+
+        <div class="chips">
+          <span class="chip">LLM API</span>
+          <span class="chip">Prompt Engineered</span>
+          <span class="chip">Stoichiometry</span>
+          <span class="chip">Gas Terms</span>
+          <span class="chip">Corrections</span>
+        </div>
+
+        <label for="scenario">Fermentation / bioprocess scenario</label>
+        <textarea id="scenario" placeholder="Write the process description here. Include substrate, product, basis, reaction, gas terms, and system boundary if available."></textarea>
+
+        <label for="attempt">Your mass balance attempt</label>
+        <textarea id="attempt" placeholder="Write the mass balance calculation here. Include input, output, units, equations, assumptions, and conclusion."></textarea>
+
+        <div class="btns">
+          <button id="reviewBtn" onclick="reviewBalance()">Review with AI →</button>
+          <button class="blue" onclick="clearAll()">Clear</button>
+          <button class="gray" onclick="customMode()">Start custom input</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>What the AI checker looks for</h2>
+        <div class="criteria">
+          <div class="criterion"><b>01</b>Clear basis, units, system boundary, and stream labels.</div>
+          <div class="criterion"><b>02</b>Total mass balance and component balance with compatible units.</div>
+          <div class="criterion"><b>03</b>Balanced reaction, mole ratio, yield, conversion, and limiting reactant.</div>
+          <div class="criterion"><b>04</b>Substrate, biomass, product, water, CO2, O2, nitrogen source, and by-products.</div>
+          <div class="criterion"><b>05</b>Errors, corrections, assumptions, limitations, and biochemical reasoning.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card report-wrap">
+      <div class="report-title-row">
+        <h2>AI Review report</h2>
+        <button onclick="copyReport()">Copy report</button>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-box"><b>Verdict</b><span id="verdictBox">--</span></div>
+        <div class="summary-box"><b>Score</b><span id="scoreBox">--</span></div>
+        <div class="summary-box"><b>Confidence</b><span id="confidenceBox">--</span></div>
+        <div class="summary-box"><b>Model</b><span id="modelBox">LLM</span></div>
+      </div>
+
+      <div id="loading" class="loading" style="display:none;">AI is reviewing the mass balance...</div>
+      <div id="reportArea" class="report-dark">Write any scenario and mass balance attempt, then click Review with AI.</div>
+    </section>
+
+    <footer class="footer">AI-Powered Mass Balance Checker | LLM API Web Tool</footer>
+  </div>
+
+  <script>
+    const samples = {
+      ethanol: {
+        scenario: `A fermentation process converts glucose into ethanol and carbon dioxide using yeast.
+
+Reaction:
+C6H12O6 → 2C2H5OH + 2CO2
+
+Basis: 180 g glucose is consumed.
+
+Molar masses:
+Glucose = 180 g/mol
+Ethanol = 46 g/mol
+Carbon dioxide = 44 g/mol`,
+        attempt: `Basis: 180 g glucose input.
+
+Input:
+Glucose = 180 g
+
+From the reaction:
+1 mol glucose produces 2 mol ethanol and 2 mol CO2.
+
+Output:
+Ethanol = 2 × 46 = 92 g
+CO2 = 2 × 44 = 88 g
+
+Total output = 92 g + 88 g = 180 g
+Total input = Total output = 180 g
+
+Therefore, the mass balance is correct.`
+      },
+      biomass: {
+        scenario: `A fermentation broth converts glucose into microbial biomass and carbon dioxide. Oxygen and nitrogen source are consumed. Basis is not clearly written by the student.`,
+        attempt: `Glucose goes to biomass. The balance is correct.`
+      },
+      gas: {
+        scenario: `A fermentation process uses glucose and oxygen to produce biomass, carbon dioxide, and water.
+
+Basis: 100 g glucose is consumed.
+
+The system includes:
+Input: glucose and oxygen
+Output: biomass, CO2, and water`,
+        attempt: `Basis: 100 g glucose.
+
+Input:
+Glucose = 100 g
+
+Output:
+Biomass = 60 g
+Water = 40 g
+
+Total output = 100 g
+
+Therefore, input equals output and the mass balance is correct.`
+      },
+      wrong: {
+        scenario: `A fermentation process converts glucose into ethanol and carbon dioxide.
+
+Reaction:
+C6H12O6 → 2C2H5OH + 2CO2
+
+Basis: 180 g glucose is consumed.`,
+        attempt: `Basis: 180 g glucose input.
+
+Input:
+Glucose = 180 g
+
+Output:
+Ethanol = 46 g
+CO2 = 44 g
+
+Total output = 46 g + 44 g = 90 g
+
+I think the mass balance is correct.`
+      }
+    };
+
+    let latestPlainReport = "";
+
+    function loadSample() {
+      const key = document.getElementById("sample").value;
+      if (!key) return;
+      document.getElementById("scenario").value = samples[key].scenario;
+      document.getElementById("attempt").value = samples[key].attempt;
+    }
+
+    function customMode() {
+      document.getElementById("sample").value = "";
+      document.getElementById("scenario").value = "";
+      document.getElementById("attempt").value = "";
+      resetReport("Now write your own custom input and click Review with AI.");
+    }
+
+    function clearAll() {
+      document.getElementById("sample").value = "";
+      document.getElementById("scenario").value = "";
+      document.getElementById("attempt").value = "";
+      resetReport("Write any scenario and mass balance attempt, then click Review with AI.");
+    }
+
+    function resetReport(message) {
+      document.getElementById("verdictBox").textContent = "--";
+      document.getElementById("scoreBox").textContent = "--";
+      document.getElementById("confidenceBox").textContent = "--";
+      document.getElementById("modelBox").textContent = "LLM";
+      document.getElementById("reportArea").className = "report-dark";
+      document.getElementById("reportArea").textContent = message;
+      latestPlainReport = message;
+    }
+
+    function statusClass(status) {
+      const s = String(status || "").toLowerCase();
+      if (s.includes("pass")) return "pass";
+      if (s.includes("fail")) return "fail";
+      return "warning";
+    }
+
+    function listHtml(items) {
+      if (!Array.isArray(items) || items.length === 0) return "<p>None reported.</p>";
+      return "<ul>" + items.map(item => `<li>${escapeHtml(item)}</li>`).join("") + "</ul>";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderReport(report, model) {
+      document.getElementById("verdictBox").textContent = report.verdict || "--";
+      document.getElementById("scoreBox").textContent = Number.isFinite(Number(report.score)) ? `${report.score}/100` : "--";
+      document.getElementById("confidenceBox").textContent = report.confidence || "--";
+      document.getElementById("modelBox").textContent = model || "LLM";
+
+      const audit = Array.isArray(report.auditChecks) ? report.auditChecks : [];
+      const auditHtml = audit.length
+        ? `<div class="audit">${audit.map(item => `
+            <div class="audit-card">
+              <strong>${escapeHtml(item.title || "Check")} <span class="${statusClass(item.status)}">(${escapeHtml(item.status || "Review")})</span></strong>
+              <p>${escapeHtml(item.comment || "")}</p>
+            </div>
+          `).join("")}</div>`
+        : "<p>No audit checks returned.</p>";
+
+      const html = `
+        <div class="section">
+          <h3>Audit checks</h3>
+          ${auditHtml}
+        </div>
+
+        <div class="section">
+          <h3>Strengths</h3>
+          ${listHtml(report.strengths)}
+        </div>
+
+        <div class="section">
+          <h3>Errors and corrections</h3>
+          <h4>Errors</h4>
+          ${listHtml(report.errors)}
+          <h4 style="margin-top:12px;">Suggested corrections</h4>
+          ${listHtml(report.corrections)}
+        </div>
+
+        <div class="section">
+          <h3>Corrected balance / guidance</h3>
+          <p>${escapeHtml(report.correctedBalance || "No corrected balance returned.")}</p>
+        </div>
+
+        <div class="section">
+          <h3>Biochemical reasoning</h3>
+          <p>${escapeHtml(report.biochemicalReasoning || "No reasoning returned.")}</p>
+        </div>
+
+        <div class="section">
+          <h3>Assumptions and limitations</h3>
+          ${listHtml(report.assumptionsAndLimits)}
+        </div>
+
+        <div class="section">
+          <h3>Next steps</h3>
+          ${listHtml(report.nextSteps)}
+        </div>
+      `;
+
+      document.getElementById("reportArea").className = "";
+      document.getElementById("reportArea").innerHTML = html;
+
+      latestPlainReport =
+`AI MASS BALANCE REVIEW REPORT
+
+Verdict: ${report.verdict || ""}
+Score: ${report.score || ""}/100
+Confidence: ${report.confidence || ""}
+Model: ${model || "LLM"}
+
+Audit Checks:
+${audit.map(a => `- ${a.title || "Check"} (${a.status || "Review"}): ${a.comment || ""}`).join("\n")}
+
+Strengths:
+${(report.strengths || []).map(x => `- ${x}`).join("\n")}
+
+Errors:
+${(report.errors || []).map(x => `- ${x}`).join("\n")}
+
+Corrections:
+${(report.corrections || []).map(x => `- ${x}`).join("\n")}
+
+Corrected Balance / Guidance:
+${report.correctedBalance || ""}
+
+Biochemical Reasoning:
+${report.biochemicalReasoning || ""}
+
+Assumptions and Limitations:
+${(report.assumptionsAndLimits || []).map(x => `- ${x}`).join("\n")}
+
+Next Steps:
+${(report.nextSteps || []).map(x => `- ${x}`).join("\n")}`;
+    }
+
+    async function reviewBalance() {
+      const scenario = document.getElementById("scenario").value.trim();
+      const attempt = document.getElementById("attempt").value.trim();
+
+      if (!scenario || !attempt) {
+        alert("Please enter both scenario and mass balance attempt.");
+        return;
+      }
+
+      const btn = document.getElementById("reviewBtn");
+      const loading = document.getElementById("loading");
+      btn.disabled = true;
+      loading.style.display = "block";
+      document.getElementById("reportArea").className = "report-dark";
+      document.getElementById("reportArea").textContent = "Sending your calculation to the AI reviewer...";
+
+      try {
+        const response = await fetch("/api/review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scenario, attempt })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok && !data.report) {
+          throw new Error(data.error || "AI review failed.");
+        }
+
+        renderReport(data.report, data.model);
+      } catch (error) {
+        resetReport("Error: " + error.message);
+      } finally {
+        btn.disabled = false;
+        loading.style.display = "none";
+      }
+    }
+
+    function copyReport() {
+      navigator.clipboard.writeText(latestPlainReport || document.getElementById("reportArea").innerText);
+      alert("Report copied successfully!");
+    }
+  </script>
+</body>
+</html>
